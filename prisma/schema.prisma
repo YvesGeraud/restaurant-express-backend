@@ -28,7 +28,7 @@ model ct_cliente {
   id_ct_cliente        Int              @id @default(autoincrement())
   nombre               String           @db.VarChar(100)
   correo               String           @db.VarChar(255)
-  telefono             Int
+  telefono             String           @db.VarChar(20)
   estado               Boolean          @default(true)
   fecha_reg            DateTime         @default(now()) @db.DateTime(0)
   fecha_mod            DateTime?        @db.DateTime(0)

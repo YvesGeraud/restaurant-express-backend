@@ -21,6 +21,13 @@ vi.mock('@/config/database.config', () => ({
       findUnique: vi.fn(),
       findFirst: vi.fn(),
     },
+    ct_estado_reservacion: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+    },
+    ct_configuracion: {
+      findFirst: vi.fn(),
+    },
     rl_rol_permiso: {
       findMany: vi.fn(),
     },
@@ -71,6 +78,15 @@ describe('Módulo de Reservaciones — Rutas de Integración', () => {
       { ct_permiso: { codigo: 'ORDENES_ESTADO' } },
       { ct_permiso: { codigo: 'ORDENES_CANCELAR' } },
     ] as any);
+
+    vi.mocked(prisma.ct_estado_reservacion.findUnique).mockResolvedValue({
+      id_ct_estado_reservacion: 1,
+      clave: 'PENDIENTE_PAGO',
+      nombre: 'Pendiente de Pago',
+    } as any);
+    vi.mocked(prisma.ct_configuracion.findFirst).mockResolvedValue({
+      horas_gracia_cancelacion: 24,
+    } as any);
   });
 
   describe('GET /api/reservaciones', () => {
@@ -166,7 +182,7 @@ describe('Módulo de Reservaciones — Rutas de Integración', () => {
       expect(res.status).toBe(200);
       expect(prisma.rl_reservacion.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ estado: 'CANCELADA' }),
+          data: expect.objectContaining({ id_ct_estado_reservacion: 1 }),
         }),
       );
     });

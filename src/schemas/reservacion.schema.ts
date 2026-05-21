@@ -17,10 +17,26 @@ export const CAMPOS_ORDENABLES_RESERVACION = [
 // ── Campos base reutilizables ─────────────────────────────────────────────────
 
 const campos = {
-  id_ct_cliente: z
-    .number({ error: MSG.VAL_REQUERIDO('id de cliente') })
+  id_ct_cliente: z.coerce
+    .number()
     .int()
-    .positive(MSG.VAL_REQUERIDO('id de cliente')),
+    .positive()
+    .optional(),
+
+  cliente: z
+    .object({
+      nombre: z
+        .string()
+        .trim()
+        .min(3, MSG.VAL_MIN('nombre', 3))
+        .max(100, MSG.VAL_MAX('nombre', 100)),
+      correo: z.string().trim().email(MSG.VAL_EMAIL).max(255, MSG.VAL_MAX('correo', 255)),
+      telefono: z
+        .string()
+        .trim()
+        .regex(/^\+?[0-9\s\-]{8,20}$/, MSG.VAL_TELEFONO_INVALIDO),
+    })
+    .optional(),
 
   num_personas: z
     .number({ error: MSG.VAL_REQUERIDO('número de personas') })
@@ -60,7 +76,13 @@ const campos = {
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
 export const crearReservacionSchema = z.object({
-  body: z.object(campos),
+  body: z.object(campos).refine(
+    (data) => data.id_ct_cliente !== undefined || data.cliente !== undefined,
+    {
+      message: 'Debe proporcionar un id_ct_cliente o la información del cliente.',
+      path: ['id_ct_cliente'],
+    }
+  ),
 });
 
 export const actualizarReservacionSchema = z.object({

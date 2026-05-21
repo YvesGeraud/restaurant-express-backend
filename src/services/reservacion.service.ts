@@ -98,13 +98,40 @@ class ReservacionService {
       }
     }
 
-    // 2. Validar que el cliente exista
-    const cliente = await prisma.ct_cliente.findUnique({
-      where: { id_ct_cliente: datos.id_ct_cliente },
-    });
+    // 2. Validar o crear el cliente
+    let id_ct_cliente = datos.id_ct_cliente;
 
-    if (!cliente) {
-      throw new ErrorNoEncontrado('Cliente');
+    if (!id_ct_cliente) {
+      if (!datos.cliente) {
+        throw new ErrorNegocio('Debe proporcionar un cliente para la reservación.');
+      }
+
+      // Buscar cliente por correo
+      let clienteExistente = await prisma.ct_cliente.findFirst({
+        where: { correo: datos.cliente.correo, estado: true }
+      });
+
+      if (!clienteExistente) {
+        // Crear cliente
+        clienteExistente = await prisma.ct_cliente.create({
+          data: {
+            nombre: datos.cliente.nombre,
+            correo: datos.cliente.correo,
+            telefono: datos.cliente.telefono,
+            id_ct_usuario_reg,
+          }
+        });
+      }
+
+      id_ct_cliente = clienteExistente.id_ct_cliente;
+    } else {
+      const cliente = await prisma.ct_cliente.findUnique({
+        where: { id_ct_cliente, estado: true },
+      });
+
+      if (!cliente) {
+        throw new ErrorNoEncontrado('Cliente');
+      }
     }
 
     // Obtener el ID del estado inicial PENDIENTE_PAGO del catálogo
@@ -121,9 +148,13 @@ class ReservacionService {
     // También obtener la configuración para copiar horas_gracia_cancelacion
     const config = await prisma.ct_configuracion.findFirst();
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { cliente: _cliente, id_ct_cliente: _idCli, ...datosReservacion } = datos;
+
     return prisma.rl_reservacion.create({
       data: {
-        ...datos,
+        ...datosReservacion,
+        id_ct_cliente,
         id_ct_usuario_reg,
         // Estado inicial: siempre PENDIENTE_PAGO al crear una reservación
         id_ct_estado_reservacion: estadoPendiente.id_ct_estado_reservacion,

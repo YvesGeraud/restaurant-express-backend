@@ -101,7 +101,7 @@ describe('Módulo de Clientes — Rutas de Integración', () => {
   });
 
   describe('POST /api/clientes', () => {
-    const nuevoCliente = { nombre: 'Maria', correo: 'maria@test.com', telefono: 1234567890 };
+    const nuevoCliente = { nombre: 'Maria', correo: 'maria@test.com', telefono: '1234567890' };
 
     it('debe crear un cliente si no hay duplicado', async () => {
       vi.mocked(prisma.ct_cliente.findUnique).mockResolvedValue(null);

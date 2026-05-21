@@ -18,7 +18,11 @@ const campos = {
 
   correo: z.string().trim().email(MSG.VAL_EMAIL).max(255, MSG.VAL_MAX('correo', 255)),
 
-  telefono: z.coerce.number().int().positive(MSG.VAL_REQUERIDO('teléfono')),
+  telefono: z
+    .string()
+    .trim()
+    .min(1, MSG.VAL_REQUERIDO('teléfono'))
+    .regex(/^\+?[0-9\s\-]{8,20}$/, MSG.VAL_TELEFONO_INVALIDO),
 };
 
 // ── Schemas ───────────────────────────────────────────────────────────────────

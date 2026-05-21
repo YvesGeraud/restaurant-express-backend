@@ -63,9 +63,17 @@ describe('Módulo de Mesas — Rutas de Integración', () => {
       expect(res.body.meta.totalRegistros).toBe(2);
     });
 
-    it('debe retornar 401 si no hay token', async () => {
+    it('debe permitir el acceso público (sin token)', async () => {
+      const mockMesas = [
+        { id_ct_mesa: 1, codigo: 'M1', capacidad: 4, estado: true },
+      ];
+      vi.mocked(prisma.ct_mesa.findMany).mockResolvedValue(mockMesas);
+      vi.mocked(prisma.ct_mesa.count).mockResolvedValue(1);
+
       const res = await request(app).get('/api/mesas');
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(200);
+      expect(res.body.exito).toBe(true);
+      expect(res.body.datos).toHaveLength(1);
     });
   });
 

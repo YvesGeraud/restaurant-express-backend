@@ -8,12 +8,12 @@ import { idParamSchema } from '@/schemas/comun.schema';
 
 const router = Router();
 
-// Todas las rutas de mesas requieren estar autenticado
-router.use(autenticado);
-
+// Rutas públicas (para poder seleccionar mesa en formulario público)
 router.get('/', validar(filtrosMesasSchema), mesaController.listar);
-
 router.get('/:id', validar(idParamSchema), mesaController.obtenerPorId);
+
+// Rutas administrativas protegidas
+router.use(autenticado);
 
 router.post(
   '/',

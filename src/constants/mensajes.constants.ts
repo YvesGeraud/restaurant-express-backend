@@ -41,6 +41,7 @@ export const MSG = {
   VAL_MAX: (campo: string, max: number) =>
     `El campo ${campo} no puede exceder los ${max} caracteres.`,
   VAL_EMAIL: 'El formato del correo electrónico no es válido.',
+  VAL_TELEFONO_INVALIDO: 'El formato del número de teléfono no es válido (debe tener entre 8 y 20 dígitos).',
 } as const;
 
 export type MessageKey = keyof typeof MSG;

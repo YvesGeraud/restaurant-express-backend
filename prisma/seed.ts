@@ -284,9 +284,9 @@ async function main() {
   // 6.6. Clientes
   console.log('👥 Creando clientes...');
   const clientesData = [
-    { nombre: 'Juan Manuel Lopez', correo: 'juan.lopez@email.com', telefono: 88776655 },
-    { nombre: 'Maria Fernanda Garcia', correo: 'maria.garcia@email.com', telefono: 77665544 },
-    { nombre: 'Carlos Roberto Gomez', correo: 'carlos.gomez@email.com', telefono: 66554433 },
+    { nombre: 'Juan Manuel Lopez', correo: 'juan.lopez@email.com', telefono: '88776655' },
+    { nombre: 'Maria Fernanda Garcia', correo: 'maria.garcia@email.com', telefono: '77665544' },
+    { nombre: 'Carlos Roberto Gomez', correo: 'carlos.gomez@email.com', telefono: '66554433' },
   ];
 
   for (const c of clientesData) {

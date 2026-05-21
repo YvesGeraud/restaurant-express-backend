@@ -21,7 +21,7 @@ CREATE TABLE `ct_cliente` (
     `id_ct_cliente` INTEGER NOT NULL AUTO_INCREMENT,
     `nombre` VARCHAR(100) NOT NULL,
     `correo` VARCHAR(255) NOT NULL,
-    `telefono` INTEGER NOT NULL,
+    `telefono` VARCHAR(20) NOT NULL,
     `estado` BOOLEAN NOT NULL DEFAULT true,
     `fecha_reg` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `fecha_mod` DATETIME(0) NULL,
