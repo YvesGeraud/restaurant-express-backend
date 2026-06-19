@@ -7,6 +7,8 @@ import { prisma } from '@/config/database.config';
 import { limpiarTokensExpirados } from '@/jobs/tokens.job';
 import { procesarNoShows } from '@/jobs/noshow.job';
 import socketService from '@/services/socket.service';
+import { cargarCacheRutaPermisos, iniciarRefrescoAutomatico } from '@/utils/ruta-permiso.cache';
+
 
 // ── Iniciar servidor ──────────────────────────────────────────────────────────
 
@@ -22,6 +24,11 @@ const servidor = app.listen(config.puerto, () => {
   // Inicializar Sockets
   socketService.inicializar(servidor);
 
+  // ── Cache de autorización dinámica ────────────────────────────────────────
+  // Carga el mapa ruta→permiso en memoria y activa el refresco automático (10 min)
+  // como safety net. La invalidación principal ocurre al modificar ct_ruta_permiso.
+  void cargarCacheRutaPermisos();
+  iniciarRefrescoAutomatico();
 
   // ── Jobs de fondo ─────────────────────────────────────────────────────────
   // Se registran DESPUÉS de que el servidor arranca para no bloquear el inicio.

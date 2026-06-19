@@ -9,20 +9,21 @@ import {
   crearPlatillosLoteSchema,
 } from '@/schemas/platillo.schema';
 
-import { autenticado } from '@/middlewares/autenticacion.middleware'; //TODO: Implementar autenticación
-import { tienePermiso } from '@/middlewares/autorizacion.middleware'; //TODO: Implementar autorización
+import { autenticado } from '@/middlewares/autenticacion.middleware';
+import { autorizar } from '@/middlewares/autorizacion.middleware';
+
 const router = Router();
 
 // Rutas públicas
 router.get('/', validar(filtrosPlatillosSchema), platilloController.listar);
 router.get('/:id', validar(idParamSchema), platilloController.obtenerPorId);
 
-// Rutas protegidas (Requieren login y permisos específicos)
+// Rutas protegidas (Requieren login y permiso configurado en ct_ruta_permiso)
 // ⚠ /batch DEBE ir antes de /:id — Express interpreta "batch" como un ID si va después
 router.post(
   '/batch',
   autenticado,
-  tienePermiso('PLATILLOS_CREAR'),
+  autorizar,
   validar(crearPlatillosLoteSchema),
   platilloController.crearLote,
 );
@@ -30,7 +31,7 @@ router.post(
 router.post(
   '/',
   autenticado,
-  tienePermiso('PLATILLOS_CREAR'),
+  autorizar,
   validar(crearPlatilloSchema),
   platilloController.crear,
 );
@@ -38,7 +39,7 @@ router.post(
 router.patch(
   '/:id',
   autenticado,
-  tienePermiso('PLATILLOS_EDITAR'),
+  autorizar,
   validar(actualizarPlatilloSchema),
   platilloController.actualizar,
 );
@@ -46,7 +47,7 @@ router.patch(
 router.delete(
   '/:id',
   autenticado,
-  tienePermiso('PLATILLOS_BORRAR'),
+  autorizar,
   validar(idParamSchema),
   platilloController.eliminar,
 );

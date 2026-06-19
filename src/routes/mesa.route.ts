@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import mesaController from '@/controllers/mesa.controller';
 import { autenticado } from '@/middlewares/autenticacion.middleware';
-import { tienePermiso } from '@/middlewares/autorizacion.middleware';
+import { autorizar } from '@/middlewares/autorizacion.middleware';
 import { validar } from '@/middlewares/validar.middlewares';
 import { crearMesaSchema, actualizarMesaSchema, filtrosMesasSchema } from '@/schemas/mesa.schema';
 import { idParamSchema } from '@/schemas/comun.schema';
@@ -17,18 +17,18 @@ router.use(autenticado);
 
 router.post(
   '/',
-  tienePermiso('CONFIG_VER'), // Usamos un permiso de gestión/config para mesas
+  autorizar,
   validar(crearMesaSchema),
   mesaController.crear,
 );
 
 router.patch(
   '/:id',
-  tienePermiso('CONFIG_VER'),
+  autorizar,
   validar(actualizarMesaSchema),
   mesaController.actualizar,
 );
 
-router.delete('/:id', tienePermiso('CONFIG_VER'), validar(idParamSchema), mesaController.eliminar);
+router.delete('/:id', autorizar, validar(idParamSchema), mesaController.eliminar);
 
 export { router as mesaRouter };
