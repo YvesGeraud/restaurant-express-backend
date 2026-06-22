@@ -2,10 +2,11 @@ import { Router } from 'express';
 import express from 'express';
 import pagoController from '@/controllers/pago.controller';
 import { autenticado } from '@/middlewares/autenticacion.middleware';
-import { tienePermiso } from '@/middlewares/autorizacion.middleware';
+import { autorizar } from '@/middlewares/autorizacion.middleware';
 import { validar } from '@/middlewares/validar.middlewares';
 import { iniciarPagoSchema, cancelarReservacionSchema } from '@/schemas/pago.schema';
 import { idParamSchema } from '@/schemas/comun.schema';
+
 
 // ── Router de webhooks (sin autenticación JWT) ─────────────────────────────
 // Este router se monta en /api/webhooks — Stripe hace POST directamente aquí.
@@ -55,7 +56,7 @@ pagoRouter.post(
 pagoRouter.post(
   '/:id/cancelar',
   autenticado,
-  tienePermiso('RESERVACIONES_EDITAR'),
+  autorizar,
   validar(cancelarReservacionSchema),
   pagoController.cancelar,
 );
@@ -68,7 +69,7 @@ pagoRouter.post(
 pagoRouter.patch(
   '/:id/completar',
   autenticado,
-  tienePermiso('RESERVACIONES_EDITAR'),
+  autorizar,
   validar(idParamSchema),
   pagoController.completar,
 );

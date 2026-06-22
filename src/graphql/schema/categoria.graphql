@@ -1,0 +1,23 @@
+"""
+Categoría de platillos (ej: Entradas, Platos Fuertes, Bebidas)
+"""
+type Categoria {
+  id_ct_categoria:   Int!
+  nombre:            String!
+  descripcion:       String
+  estado:            Boolean!
+  fecha_reg:         DateTime!
+
+  """ Platillos activos que pertenecen a esta categoría """
+  platillos:         [Platillo!]!
+}
+
+# ── Queries ───────────────────────────────────────────────────────────────────
+
+extend type Query {
+  """ Obtener todas las categorías (activas por defecto) """
+  categorias(soloActivas: Boolean): [Categoria!]!
+
+  """ Obtener una categoría por ID """
+  categoria(id: Int!): Categoria
+}

@@ -1,0 +1,13 @@
+"""
+Schema raíz — define los tipos de operación.
+Cada módulo extiende Query / Mutation / Subscription con sus propios campos.
+"""
+type Query
+type Mutation
+type Subscription
+
+schema {
+  query:        Query
+  mutation:     Mutation
+  subscription: Subscription
+}

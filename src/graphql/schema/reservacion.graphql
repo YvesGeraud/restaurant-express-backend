@@ -1,0 +1,102 @@
+"""
+Estado de la reservación (catálogo ct_estado_reservacion)
+"""
+type EstadoReservacion {
+  id_ct_estado_reservacion: Int!
+  clave:                    String!
+  nombre:                   String!
+  descripcion:              String
+  implica_pago_activo:      Boolean!
+}
+
+"""
+Cliente que realiza la reservación (ct_cliente)
+"""
+type Cliente {
+  id_ct_cliente:   Int!
+  nombre:          String!
+  correo:          String!
+  telefono:        String!
+  estado:          Boolean!
+}
+
+"""
+Reservación registrada en el sistema (rl_reservacion)
+"""
+type Reservacion {
+  id_rl_reservacion:        Int!
+  fecha_reservacion:        DateTime!
+  num_personas:             Int!
+  notas:                    String
+  clave_intento_pago:       String
+  estado_pago_stripe:       String
+  monto_deposito_centavos:  Int
+  horas_gracia_cancelacion: Int!
+  fecha_reg:                DateTime!
+  fecha_mod:                DateTime
+
+  # Relaciones
+  cliente:              Cliente!
+  estado:               EstadoReservacion!
+  mesa:                 Mesa
+  usuario_registro:     UsuarioResumen!
+  usuario_modificacion: UsuarioResumen
+}
+
+# ── Inputs ────────────────────────────────────────────────────────────────────
+
+input FiltrosReservacionesInput {
+  id_ct_cliente: Int
+  id_ct_mesa:    Int
+  clave_estado:  String
+  pagina:        Int
+  limite:        Int
+  ordenar_por:   String
+  orden:         String
+}
+
+input ClienteInput {
+  nombre:   String!
+  correo:   String!
+  telefono: String!
+}
+
+input CrearReservacionInput {
+  id_ct_cliente:     Int
+  cliente:           ClienteInput
+  id_ct_mesa:        Int
+  fecha_reservacion: DateTime!
+  num_personas:      Int!
+  notas:             String
+}
+
+input ActualizarReservacionInput {
+  id_ct_mesa:        Int
+  fecha_reservacion: DateTime
+  num_personas:      Int
+  notas:             String
+  estado:            String
+}
+
+# ── Queries ───────────────────────────────────────────────────────────────────
+
+extend type Query {
+  """ Obtener todas las reservaciones con filtros y paginación (requiere autenticación) """
+  reservaciones(filtros: FiltrosReservacionesInput): [Reservacion!]!
+
+  """ Obtener reservación por ID (requiere autenticación) """
+  reservacion(id: Int!): Reservacion
+}
+
+# ── Mutations ─────────────────────────────────────────────────────────────────
+
+extend type Mutation {
+  """ Crear una reservación (admite creación pública/sistema) """
+  crearReservacion(input: CrearReservacionInput!): Reservacion!
+
+  """ Actualizar datos de una reservación (requiere autenticación) """
+  actualizarReservacion(id: Int!, input: ActualizarReservacionInput!): Reservacion!
+
+  """ Cancelar reservación/eliminar (requiere autenticación) """
+  eliminarReservacion(id: Int!): Boolean!
+}

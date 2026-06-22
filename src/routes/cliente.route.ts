@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import clienteController from '@/controllers/cliente.controller';
 import { autenticado } from '@/middlewares/autenticacion.middleware';
-import { tienePermiso } from '@/middlewares/autorizacion.middleware';
+import { autorizar } from '@/middlewares/autorizacion.middleware';
 import { validar } from '@/middlewares/validar.middlewares';
 import {
   crearClienteSchema,
@@ -17,35 +17,35 @@ router.use(autenticado);
 
 router.get(
   '/',
-  tienePermiso('CLIENTES_VER'),
+  autorizar,
   validar(filtrosClientesSchema),
   clienteController.listar,
 );
 
 router.get(
   '/:id',
-  tienePermiso('CLIENTES_VER'),
+  autorizar,
   validar(idParamSchema),
   clienteController.obtenerPorId,
 );
 
 router.post(
   '/',
-  tienePermiso('CLIENTES_CREAR'),
+  autorizar,
   validar(crearClienteSchema),
   clienteController.crear,
 );
 
 router.patch(
   '/:id',
-  tienePermiso('CLIENTES_EDITAR'),
+  autorizar,
   validar(actualizarClienteSchema),
   clienteController.actualizar,
 );
 
 router.delete(
   '/:id',
-  tienePermiso('CLIENTES_BORRAR'),
+  autorizar,
   validar(idParamSchema),
   clienteController.eliminar,
 );

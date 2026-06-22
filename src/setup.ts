@@ -26,9 +26,19 @@ import { webhookRouter } from '@/routes/pago.route';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from '@/docs/swagger.docs';
 
+// ── GraphQL ───────────────────────────────────────────────────────────────────
+// Apollo Server 5 no tiene expressMiddleware — usamos executeHTTPGraphQLRequest
+import type { Request, Response, NextFunction } from 'express';
+import { HeaderMap } from '@apollo/server';
+import { crearApolloServer } from '@/graphql/apollo';
+import { crearContextoHttp } from '@/graphql/context';
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 const app = express();
+
+// Instancia de Apollo Server — se inicializa antes de las rutas (ver abajo)
+let apolloServer: Awaited<ReturnType<typeof crearApolloServer>> | null = null;
 
 // Confiar en el proxy inverso (Nginx, AWS, etc.) para obtener la IP real del cliente.
 // Sin esto, TODAS las peticiones parecerían venir de la IP del proxy, bloqueando a todos al instante.
@@ -37,7 +47,13 @@ app.set('trust proxy', 1);
 // ── Seguridad ─────────────────────────────────────────────────────────────────
 
 // Cabeceras de seguridad HTTP (elimina X-Powered-By, añade CSP, etc.)
-app.use(helmet());
+// En desarrollo, desactivamos Content Security Policy (CSP) para permitir que Apollo Sandbox
+// y Swagger UI carguen sus iframes y scripts externos sin problemas.
+app.use(
+  helmet({
+    contentSecurityPolicy: config.esProduccion ? undefined : false,
+  }),
+);
 
 // CORS: lista blanca desde ALLOWED_ORIGINS (.env en local, passenger_env_var en servidor)
 app.use(
@@ -187,6 +203,64 @@ app.use(`${base}api/auth`, limitarAuth, authRouter);
 
 // Resto de módulos centralizados en routes/index.ts
 app.use(`${base}api/`, router);
+
+// ── GraphQL ───────────────────────────────────────────────────────────────────
+// La ruta /graphql DEBE registrarse aquí (ANTES del 404 handler).
+// Usamos un handler que delega al servidor Apollo una vez que se inicializa.
+app.use(`${base}graphql`, async (req: Request, res: Response, next: NextFunction) => {
+  if (!apolloServer) {
+    // Apollo aun no ha inicializado (no debería ocurrir en producción)
+    res.status(503).json({ error: 'GraphQL server not ready' });
+    return;
+  }
+  try {
+    const headers = new HeaderMap();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value !== undefined) {
+        headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+      }
+    }
+    const httpGraphQLRequest = {
+      method: req.method.toUpperCase(),
+      headers,
+      search: req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '',
+      body: req.body as unknown,
+    };
+    const response = await apolloServer.executeHTTPGraphQLRequest({
+      httpGraphQLRequest,
+      context: () => crearContextoHttp({ req }),
+    });
+    for (const [key, value] of response.headers) {
+      res.setHeader(key, value);
+    }
+    res.status(response.status ?? 200);
+    if (response.body.kind === 'complete') {
+      res.send(response.body.string);
+    } else {
+      for await (const chunk of response.body.asyncIterator) {
+        res.write(chunk);
+      }
+      res.end();
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GraphQL inicialización ───────────────────────────────────────────────────────────────────
+// Arranca Apollo Server y lo asigna a la variable `apolloServer`.
+// El handler de /graphql ya está registrado arriba — simplemente consulta
+// la variable cuando llega una request.
+export async function inicializarApollo(): Promise<void> {
+  apolloServer = await crearApolloServer();
+  await apolloServer.start();
+  console.log(`\n    🚀 GraphQL disponible en: http://localhost/graphql`);
+}
+
+/** Expone el servidor Apollo para que app.ts pueda adjuntarlo al WebSocket server */
+export function getApolloServer() {
+  return apolloServer;
+}
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 

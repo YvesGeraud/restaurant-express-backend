@@ -1,0 +1,20 @@
+"""
+Mesa del restaurante
+"""
+type Mesa {
+  id_ct_mesa:   Int!
+  codigo:       String!
+  capacidad:    Int!
+  status:       String!
+  estado:       Boolean!
+}
+
+# ── Queries ───────────────────────────────────────────────────────────────────
+
+extend type Query {
+  """ Lista de mesas (activas por defecto) """
+  mesas(soloActivas: Boolean): [Mesa!]!
+
+  """ Mesa por ID """
+  mesa(id: Int!): Mesa
+}

@@ -19,12 +19,61 @@ const PERMISOS = [
   'CONFIG_VER',
   'AUDITORIA_VER',
   'REPORTES_VER',
+  'CLIENTES_VER',
+  'CLIENTES_CREAR',
+  'CLIENTES_EDITAR',
+  'CLIENTES_BORRAR',
   // Permisos del módulo de reservaciones
   'RESERVACIONES_VER',
   'RESERVACIONES_CREAR',
   'RESERVACIONES_EDITAR',
   'RESERVACIONES_BORRAR',
 ];
+
+// Mapeo dinámico: (método HTTP, ruta base) → código del permiso requerido.
+// El middleware `autorizar` carga estos datos en memoria al arrancar el servidor.
+// Rutas con parámetros (/:id) se normalizan a la ruta base antes del lookup.
+const RUTA_PERMISOS = [
+  // ── Usuarios ──────────────────────────────────────────────────────────────
+  { metodo: 'GET',    ruta: '/api/usuarios',              codigo: 'USUARIOS_VER' },
+  { metodo: 'POST',   ruta: '/api/usuarios',              codigo: 'USUARIOS_CREAR' },
+  { metodo: 'PATCH',  ruta: '/api/usuarios',              codigo: 'USUARIOS_EDITAR' },
+  { metodo: 'DELETE', ruta: '/api/usuarios',              codigo: 'USUARIOS_BORRAR' },
+  { metodo: 'GET',    ruta: '/api/usuarios/permisos',     codigo: 'USUARIOS_VER' },
+  { metodo: 'GET',    ruta: '/api/usuarios/roles',        codigo: 'USUARIOS_VER' },
+  { metodo: 'PUT',    ruta: '/api/usuarios/roles',        codigo: 'USUARIOS_EDITAR' },
+  // ── Platillos ─────────────────────────────────────────────────────────────
+  { metodo: 'POST',   ruta: '/api/platillos',             codigo: 'PLATILLOS_CREAR' },
+  { metodo: 'POST',   ruta: '/api/platillos/batch',       codigo: 'PLATILLOS_CREAR' },
+  { metodo: 'PATCH',  ruta: '/api/platillos',             codigo: 'PLATILLOS_EDITAR' },
+  { metodo: 'DELETE', ruta: '/api/platillos',             codigo: 'PLATILLOS_BORRAR' },
+  // ── Órdenes ───────────────────────────────────────────────────────────────
+  { metodo: 'POST',   ruta: '/api/ordenes',               codigo: 'ORDENES_CREAR' },
+  { metodo: 'PUT',    ruta: '/api/ordenes',               codigo: 'ORDENES_EDITAR' },
+  { metodo: 'DELETE', ruta: '/api/ordenes',               codigo: 'ORDENES_CANCELAR' },
+  { metodo: 'PATCH',  ruta: '/api/ordenes',               codigo: 'ORDENES_ESTADO' },
+  // ── Clientes ──────────────────────────────────────────────────────────────
+  { metodo: 'GET',    ruta: '/api/clientes',              codigo: 'CLIENTES_VER' },
+  { metodo: 'POST',   ruta: '/api/clientes',              codigo: 'CLIENTES_CREAR' },
+  { metodo: 'PATCH',  ruta: '/api/clientes',              codigo: 'CLIENTES_EDITAR' },
+  { metodo: 'DELETE', ruta: '/api/clientes',              codigo: 'CLIENTES_BORRAR' },
+  // ── Reservaciones ─────────────────────────────────────────────────────────
+  { metodo: 'GET',    ruta: '/api/reservaciones',         codigo: 'RESERVACIONES_VER' },
+  { metodo: 'PATCH',  ruta: '/api/reservaciones',         codigo: 'RESERVACIONES_EDITAR' },
+  { metodo: 'DELETE', ruta: '/api/reservaciones',         codigo: 'RESERVACIONES_BORRAR' },
+  { metodo: 'POST',   ruta: '/api/reservaciones',         codigo: 'RESERVACIONES_EDITAR' },
+  // ── Configuración y mesas ─────────────────────────────────────────────────
+  { metodo: 'GET',    ruta: '/api/configuracion',         codigo: 'CONFIG_VER' },
+  { metodo: 'PATCH',  ruta: '/api/configuracion',         codigo: 'CONFIG_VER' },
+  { metodo: 'POST',   ruta: '/api/mesas',                 codigo: 'CONFIG_VER' },
+  { metodo: 'PATCH',  ruta: '/api/mesas',                 codigo: 'CONFIG_VER' },
+  { metodo: 'DELETE', ruta: '/api/mesas',                 codigo: 'CONFIG_VER' },
+  // ── Reportes ──────────────────────────────────────────────────────────────
+  { metodo: 'GET',    ruta: '/api/reportes',              codigo: 'REPORTES_VER' },
+  { metodo: 'GET',    ruta: '/api/pdf',                   codigo: 'REPORTES_VER' },
+  { metodo: 'GET',    ruta: '/api/excel',                 codigo: 'REPORTES_VER' },
+];
+
 
 const ROLES_CONFIG = {
   GERENTE: [
@@ -61,6 +110,7 @@ async function main() {
     prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0;'),
     prisma.$executeRawUnsafe('TRUNCATE TABLE dt_bitacora;'),
     prisma.$executeRawUnsafe('TRUNCATE TABLE rl_rol_permiso;'),
+    prisma.$executeRawUnsafe('TRUNCATE TABLE ct_ruta_permiso;'),
     prisma.$executeRawUnsafe('TRUNCATE TABLE ct_permiso;'),
     prisma.$executeRawUnsafe('TRUNCATE TABLE dt_refresh_token;'),
     prisma.$executeRawUnsafe('TRUNCATE TABLE dt_detalle_orden;'),
@@ -143,6 +193,28 @@ async function main() {
       },
     });
   }
+
+  // 3.5 Mapeo ruta → permiso (ct_ruta_permiso)
+  console.log('🗺️  Creando mapeo dinámico ruta→permiso...');
+  for (const { metodo, ruta, codigo } of RUTA_PERMISOS) {
+    const permisoId = permisosMap[codigo];
+    if (!permisoId) {
+      console.warn(`⚠️  Permiso '${codigo}' no encontrado para ${metodo} ${ruta}`);
+      continue;
+    }
+    await prisma.ct_ruta_permiso.upsert({
+      where: { metodo_ruta: { metodo, ruta } },
+      update: { id_ct_permiso: permisoId },
+      create: {
+        metodo,
+        ruta,
+        id_ct_permiso: permisoId,
+        descripcion: `${metodo} ${ruta} requiere ${codigo}`,
+        id_ct_usuario_reg: 1,
+      },
+    });
+  }
+  console.log(`✅ ${RUTA_PERMISOS.length} mapeos ruta→permiso creados`);
 
   // 4. Crear Roles secundarios y vincular permisos
   console.log('👥 Creando roles secundarios y vinculando permisos...');

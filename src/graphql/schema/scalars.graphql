@@ -1,0 +1,9 @@
+"""
+Fecha y hora en formato ISO 8601 (ej: "2025-05-24T03:00:00.000Z")
+"""
+scalar DateTime
+
+"""
+Número decimal de precisión arbitraria (precios, totales)
+"""
+scalar Decimal

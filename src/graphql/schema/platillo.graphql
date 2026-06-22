@@ -1,0 +1,68 @@
+"""
+Platillo del menú del restaurante
+"""
+type Platillo {
+  id_ct_platillo:  Int!
+  nombre:          String!
+  descripcion:     String
+  precio:          Decimal!
+  imagen_url:      String
+  estado:          Boolean!
+  fecha_reg:       DateTime!
+
+  """ Categoría a la que pertenece (resuelta via DataLoader — sin N+1) """
+  categoria:       Categoria!
+}
+
+# ── Inputs ────────────────────────────────────────────────────────────────────
+
+input FiltrosPlatillosInput {
+  """ Búsqueda por nombre o descripción """
+  busqueda:         String
+  """ Filtrar por categoría """
+  id_ct_categoria:  Int
+  """ Filtrar por estado activo/inactivo (default: true) """
+  estado:           Boolean
+  pagina:           Int
+  limite:           Int
+}
+
+input CrearPlatilloInput {
+  id_ct_categoria:  Int!
+  nombre:           String!
+  descripcion:      String
+  precio:           Float!
+  imagen_url:       String
+}
+
+input ActualizarPlatilloInput {
+  nombre:           String
+  descripcion:      String
+  precio:           Float
+  imagen_url:       String
+  id_ct_categoria:  Int
+  estado:           Boolean
+}
+
+# ── Queries ───────────────────────────────────────────────────────────────────
+
+extend type Query {
+  """ Lista de platillos con filtros opcionales """
+  platillos(filtros: FiltrosPlatillosInput): [Platillo!]!
+
+  """ Platillo específico por ID """
+  platillo(id: Int!): Platillo
+}
+
+# ── Mutations ─────────────────────────────────────────────────────────────────
+
+extend type Mutation {
+  """ Crear un nuevo platillo (requiere autenticación) """
+  crearPlatillo(input: CrearPlatilloInput!): Platillo!
+
+  """ Actualizar campos de un platillo (requiere autenticación) """
+  actualizarPlatillo(id: Int!, input: ActualizarPlatilloInput!): Platillo!
+
+  """ Desactivar un platillo — soft delete (requiere autenticación) """
+  eliminarPlatillo(id: Int!): Boolean!
+}

@@ -1,0 +1,114 @@
+"""
+Estado posible de una orden (espejo del enum Prisma rl_orden_estado)
+"""
+enum EstadoOrden {
+  PENDIENTE
+  EN_PROCESO
+  LISTO
+  ENTREGADO
+  PAGADA
+  CANCELADO
+}
+
+"""
+Detalle de un platillo dentro de una orden
+"""
+type DetalleOrden {
+  id_dt_detalle_orden:  Int!
+  cantidad:             Int!
+  precio_unitario:      Decimal!
+  subtotal:             Decimal!
+
+  """ Platillo correspondiente (resuelto via DataLoader) """
+  platillo:             Platillo!
+}
+
+"""
+Resumen del usuario asignado a la orden (mesero)
+"""
+type UsuarioResumen {
+  id_ct_usuario:    Int!
+  nombre_completo:  String!
+}
+
+"""
+Orden del restaurante con todos sus detalles
+"""
+type Orden {
+  id_rl_orden:  Int!
+  estado:       EstadoOrden!
+  total:        Decimal!
+  fecha_reg:    DateTime!
+  fecha_mod:    DateTime
+
+  """ Mesa asignada (null si es orden para llevar) """
+  mesa:         Mesa
+
+  """ Mesero que tomó la orden """
+  usuario:      UsuarioResumen!
+
+  """ IDs de auditoría para filtrado de notificaciones """
+  id_ct_usuario_reg: Int!
+  id_ct_usuario_mod: Int
+
+  """ Platillos incluidos en la orden """
+  detalles:     [DetalleOrden!]!
+}
+
+# ── Inputs ────────────────────────────────────────────────────────────────────
+
+input FiltrosOrdenesInput {
+  estado:         EstadoOrden
+  id_ct_usuario:  Int
+  id_mesa:        Int
+  pagina:         Int
+  limite:         Int
+}
+
+input ItemOrdenInput {
+  id_ct_platillo:  Int!
+  cantidad:        Int!
+}
+
+input CrearOrdenInput {
+  """ ID de mesa (null si es orden para llevar) """
+  id_mesa:   Int
+  detalles:  [ItemOrdenInput!]!
+}
+
+input ActualizarEstadoOrdenInput {
+  estado:  EstadoOrden!
+}
+
+# ── Queries ───────────────────────────────────────────────────────────────────
+
+extend type Query {
+  """ Lista de órdenes con filtros opcionales (requiere autenticación) """
+  ordenes(filtros: FiltrosOrdenesInput): [Orden!]!
+
+  """ Orden específica por ID (requiere autenticación) """
+  orden(id: Int!): Orden
+}
+
+# ── Mutations ─────────────────────────────────────────────────────────────────
+
+extend type Mutation {
+  """ Crear una nueva orden completa con sus detalles (requiere autenticación) """
+  crearOrden(input: CrearOrdenInput!): Orden!
+
+  """ Actualizar el estado de una orden (requiere autenticación) """
+  cambiarEstadoOrden(id: Int!, input: ActualizarEstadoOrdenInput!): Orden!
+
+  """ Cancelar una orden — equivale a cambiar estado a CANCELADO (requiere autenticación) """
+  cancelarOrden(id: Int!): Orden!
+}
+
+# ── Subscriptions ─────────────────────────────────────────────────────────────
+
+extend type Subscription {
+  """ Recibir en tiempo real cuando se crea una nueva orden """
+  ordenNueva: Orden!
+
+  """ Recibir en tiempo real cuando se actualiza el estado de una orden """
+  ordenActualizada: Orden!
+}

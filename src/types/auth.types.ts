@@ -1,4 +1,9 @@
-import type { Permiso } from '../constants/auth.constants';
+/**
+ * Código de un permiso en el sistema (ej: 'USUARIOS_VER', 'PLATILLOS_CREAR').
+ * Era keyof typeof PERMISOS cuando los permisos eran constantes.
+ * Ahora es `string` porque los permisos se gestionan dinámicamente en BD (ct_permiso).
+ */
+export type Permiso = string;
 
 /**
  * Datos del usuario disponibles en req.usuario después de validar el JWT.
@@ -12,6 +17,7 @@ export interface UsuarioAutenticado {
   rol: string; // Nombre del rol extraído de la BD
   permisos: Permiso[]; // Lista de permisos activos para el rol
 }
+
 
 /**
  * Payload firmado dentro del JWT (access y refresh token).
