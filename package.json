@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec \"tsx src/app.ts\" --watch src --ext ts --legacy-watch",
-    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc && tsc-alias",
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc && tsc-alias && node scripts/copy-graphql.js",
     "start": "node dist/app.js",
     "db:tsc": "tsc",
     "db:generate": "prisma generate",

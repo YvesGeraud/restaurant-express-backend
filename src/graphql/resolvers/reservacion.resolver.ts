@@ -67,7 +67,7 @@ export const reservacionResolvers = {
       try {
         const reservacion = await reservacionService.obtenerPorId(args.id);
         return reservacion as unknown as ReservacionCompleta;
-      } catch (error) {
+      } catch {
         return null;
       }
     },
