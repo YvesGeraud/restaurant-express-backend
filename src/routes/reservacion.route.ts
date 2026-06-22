@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import reservacionController from '@/controllers/reservacion.controller';
 import { autenticado } from '@/middlewares/autenticacion.middleware';
-import { tienePermiso } from '@/middlewares/autorizacion.middleware';
+import { autorizar } from '@/middlewares/autorizacion.middleware';
 import { validar } from '@/middlewares/validar.middlewares';
 import {
   filtrosReservacionesSchema,
@@ -21,7 +21,7 @@ const router = Router();
 router.get(
   '/',
   autenticado,
-  tienePermiso('RESERVACIONES_VER'),
+  autorizar,
   validar(filtrosReservacionesSchema),
   reservacionController.obtenerTodos,
 );
@@ -33,7 +33,7 @@ router.get(
 router.get(
   '/:id',
   autenticado,
-  tienePermiso('RESERVACIONES_VER'),
+  autorizar,
   validar(idParamSchema),
   reservacionController.obtenerPorId,
 );
@@ -41,10 +41,10 @@ router.get(
 /**
  * @route   POST /api/reservaciones
  * @desc    Crear una nueva reservación
+ * @access  Público: cualquier persona puede crear una reservación desde la web
  */
 router.post(
   '/',
-  // Público: cualquier persona puede crear una reservación desde la web
   validar(crearReservacionSchema),
   reservacionController.crear,
 );
@@ -56,7 +56,7 @@ router.post(
 router.patch(
   '/:id',
   autenticado,
-  tienePermiso('RESERVACIONES_EDITAR'),
+  autorizar,
   validar(actualizarReservacionSchema),
   reservacionController.actualizar,
 );
@@ -68,7 +68,7 @@ router.patch(
 router.delete(
   '/:id',
   autenticado,
-  tienePermiso('RESERVACIONES_BORRAR'),
+  autorizar,
   validar(idParamSchema),
   reservacionController.eliminar,
 );

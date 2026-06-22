@@ -111,6 +111,7 @@ model ct_permiso {
   usuario_modificacion ct_usuario?      @relation("ct_permiso_id_ct_usuario_modToct_usuario", fields: [id_ct_usuario_mod], references: [id_ct_usuario], onDelete: NoAction, onUpdate: NoAction, map: "FK_ct_permiso_ct_usuario_mod")
   usuario_registro     ct_usuario       @relation("ct_permiso_id_ct_usuario_regToct_usuario", fields: [id_ct_usuario_reg], references: [id_ct_usuario], onDelete: NoAction, onUpdate: NoAction, map: "FK_ct_permiso_ct_usuario_reg")
   rl_rol_permiso       rl_rol_permiso[]
+  ct_ruta_permiso      ct_ruta_permiso[]
 
   @@index([id_ct_usuario_mod], map: "FK_ct_permiso_ct_usuario_mod")
   @@index([id_ct_usuario_reg], map: "FK_ct_permiso_ct_usuario_reg")
@@ -243,6 +244,8 @@ model ct_usuario {
   rl_reservacion_registrados      rl_reservacion[]      @relation("rl_reservacion_id_ct_usuario_regToct_usuario")
   rl_rol_permiso_modificados      rl_rol_permiso[]      @relation("rl_rol_permiso_id_ct_usuario_modToct_usuario")
   rl_rol_permiso_registrados      rl_rol_permiso[]      @relation("rl_rol_permiso_id_ct_usuario_regToct_usuario")
+  ct_ruta_permiso_modificados     ct_ruta_permiso[]     @relation("ct_ruta_permiso_id_ct_usuario_modToct_usuario")
+  ct_ruta_permiso_registrados     ct_ruta_permiso[]     @relation("ct_ruta_permiso_id_ct_usuario_regToct_usuario")
   // Relación con ct_configuracion (solo modificaciones, no hay registro masivo de configuraciones)
   ct_configuracion_modificados    ct_configuracion[]    @relation("ct_configuracion_id_ct_usuario_modToct_usuario")
 
@@ -452,6 +455,32 @@ model rl_rol_permiso {
   @@index([id_ct_usuario_reg], map: "FK_rl_rol_permiso_ct_usuario_reg")
   @@index([id_ct_permiso], map: "dt_rol_permiso_id_ct_permiso_fkey")
   @@index([estado], map: "estado")
+}
+
+// ── Mapeo dinámico ruta → permiso ──────────────────────────────────────────────
+// Cada registro indica qué permiso se requiere para acceder a una ruta+método.
+// El middleware `autorizar` consulta esta tabla (vía cache en memoria) en cada request.
+// Permite configurar la autorización sin tocar código.
+model ct_ruta_permiso {
+  id_ct_ruta_permiso   Int        @id @default(autoincrement())
+  metodo               String     @db.VarChar(10)  // 'GET', 'POST', 'PATCH', 'PUT', 'DELETE'
+  ruta                 String     @db.VarChar(255) // '/api/usuarios', '/api/platillos'
+  id_ct_permiso        Int
+  descripcion          String?    @db.VarChar(255)
+  estado               Boolean    @default(true)
+  fecha_reg            DateTime   @default(now()) @db.DateTime(0)
+  fecha_mod            DateTime?  @db.DateTime(0)
+  id_ct_usuario_reg    Int
+  id_ct_usuario_mod    Int?
+  ct_permiso           ct_permiso @relation(fields: [id_ct_permiso], references: [id_ct_permiso], onDelete: Cascade, map: "FK_ct_ruta_permiso_ct_permiso")
+  usuario_registro     ct_usuario @relation("ct_ruta_permiso_id_ct_usuario_regToct_usuario", fields: [id_ct_usuario_reg], references: [id_ct_usuario], onDelete: NoAction, onUpdate: NoAction, map: "FK_ct_ruta_permiso_ct_usuario_reg")
+  usuario_modificacion ct_usuario? @relation("ct_ruta_permiso_id_ct_usuario_modToct_usuario", fields: [id_ct_usuario_mod], references: [id_ct_usuario], onDelete: NoAction, onUpdate: NoAction, map: "FK_ct_ruta_permiso_ct_usuario_mod")
+
+  @@unique([metodo, ruta], map: "uq_ct_ruta_permiso_metodo_ruta")
+  @@index([estado])
+  @@index([id_ct_permiso], map: "FK_ct_ruta_permiso_ct_permiso")
+  @@index([id_ct_usuario_reg], map: "FK_ct_ruta_permiso_ct_usuario_reg")
+  @@index([id_ct_usuario_mod], map: "FK_ct_ruta_permiso_ct_usuario_mod")
 }
 
 // ── Enums ───────────────────────────────────────────────────────────────────────

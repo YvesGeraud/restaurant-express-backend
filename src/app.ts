@@ -6,6 +6,7 @@ import { config } from '@/config/servidor.config';
 import { prisma } from '@/config/database.config';
 import { limpiarTokensExpirados } from '@/jobs/tokens.job';
 import { procesarNoShows } from '@/jobs/noshow.job';
+import { cargarCacheRutaPermisos, iniciarRefrescoAutomatico } from '@/utils/ruta-permiso.cache';
 
 // ── GraphQL WebSocket server (Subscriptions) ──────────────────────────────────
 import { WebSocketServer } from 'ws';
@@ -39,6 +40,12 @@ void (async () => {
     // Guardar referencia para cerrar limpiamente en shutdown
     (global as Record<string, unknown>)['wsCleanup'] = wsCleanup;
     (global as Record<string, unknown>)['servidor'] = servidor;
+
+    // ── Cache de autorización dinámica ────────────────────────────────────────
+    // Carga el mapa ruta→permiso en memoria y activa el refresco automático (10 min)
+    // como safety net. La invalidación principal ocurre al modificar ct_ruta_permiso.
+    void cargarCacheRutaPermisos();
+    iniciarRefrescoAutomatico();
 
     // ── Jobs de fondo ─────────────────────────────────────────────────────────
     // Se registran DESPUÉS de que el servidor arranca para no bloquear el inicio.
