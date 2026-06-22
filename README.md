@@ -38,8 +38,11 @@ Este es el backend del sistema de gestión de un restaurante, diseñado con un e
 5. **Tareas Programadas (Jobs)**:
    - Limpieza periódica automática de tokens JWT de refresh expirados (cada 24 horas).
    - Procesamiento de clientes "No-Show" para cobro de penalizaciones en reservaciones confirmadas que expiraron (cada hora).
-6. **Tiempo Real**:
-   - Sockets implementados con **Socket.io** para actualizaciones y notificaciones bidireccionales en tiempo real.
+6. **API Híbrida REST + GraphQL**:
+   - Mapeo flexible de datos con un endpoint moderno de **GraphQL** mediante **Apollo Server 5** que coexiste con la API REST tradicional.
+   - Prevención definitiva del problema de consultas N+1 sobre MariaDB utilizando **DataLoaders** en campos relacionales complejos (platillos, mesas, órdenes, reservaciones).
+7. **Tiempo Real con GraphQL Subscriptions**:
+   - Subscripciones en tiempo real implementadas sobre WebSocket puro mediante **graphql-ws** (reemplazando la dependencia de socket.io).
 
 ---
 
@@ -47,6 +50,9 @@ Este es el backend del sistema de gestión de un restaurante, diseñado con un e
 
 - **Entorno**: [Node.js (v18+)](https://nodejs.org/) con [TypeScript](https://www.typescriptlang.org/)
 - **Framework Web**: [Express (v5)](https://expressjs.com/)
+- **Capa de API Moderna**: [GraphQL](https://graphql.org/) & [Apollo Server 5](https://www.apollographql.com/docs/apollo-server/)
+- **Tiempo Real**: [graphql-ws](https://github.com/enisdenjo/graphql-ws) (WebSockets)
+- **Capa de Optimización**: [DataLoader](https://github.com/graphql/dataloader) (para N+1)
 - **ORM**: [Prisma](https://www.prisma.io/)
 - **Base de Datos**: MySQL o MariaDB
 - **Gestor de Paquetes**: [pnpm](https://pnpm.io/)
@@ -260,11 +266,15 @@ El backend maneja de forma asíncrona la limpieza y mantenimiento del sistema me
 
 ---
 
-## ⚡ WebSocket (Socket.io)
+## ⚡ API GraphQL & WebSockets (Subscriptions)
 
-El backend expone un canal WebSocket que permite:
-- Notificar instantáneamente a cocina cuando hay una nueva comanda (`/api/ordenes`).
-- Actualizar en tiempo real el mapa de mesas del restaurante para los meseros y la administración.
-- Notificar cambios en el estado de las reservaciones.
+El backend expone un endpoint centralizado de **GraphQL** en la ruta `/graphql` que maneja consultas relacionales optimizadas y un canal de comunicación persistente mediante WebSockets para suscripciones en tiempo real:
 
-El servicio está integrado en el servidor HTTP principal e inicializa tras el arranque exitoso de Express.
+- **Consultas Relacionales**: Resuelve complejas jerarquías como `ordenes -> detalles -> platillos -> categoria` sin incurrir en N+1 gracias al uso de **DataLoaders** en memoria por petición.
+- **Suscripciones en Tiempo Real (WebSockets)**: Utiliza el protocolo **graphql-ws** sobre WebSocket para notificar en tiempo real eventos del sistema sin requerir polling ni la sobrecarga de Socket.io.
+  - `ordenNueva`: Notifica instantáneamente a la cocina y administración cuando una nueva orden es creada.
+  - `ordenActualizada`: Avisa en tiempo real sobre cambios de estado en las comandas o mesas del restaurante.
+
+El servidor de WebSockets está montado directamente sobre el mismo puerto del servidor HTTP Express principal e inicializa de forma asíncrona tras el arranque del sistema.
+
+para visualizar la api interactiva de GRAPHQL ingresar a: http://localhost:3000/graphql

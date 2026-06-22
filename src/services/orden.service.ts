@@ -13,7 +13,7 @@ import type {
 import { CAMPOS_ORDENABLES_ORDEN } from '@/schemas/orden.schema';
 import { PAGINACION } from '@/constants';
 import { ErrorValidacion } from '@/utils/errores.utils';
-import socketService from './socket.service';
+import { pubsub, EVENTO_ORDEN_NUEVA, EVENTO_ORDEN_ACTUALIZADA } from '@/graphql/pubsub';
 
 // ── Include preciso para devolver órdenes con sus detalles ────────────────────
 
@@ -24,6 +24,7 @@ const INCLUDE_ORDEN_COMPLETA = {
         select: {
           id_ct_platillo: true,
           nombre: true,
+          precio: true,
           imagen_url: true,
         },
       },
@@ -41,6 +42,9 @@ const INCLUDE_ORDEN_COMPLETA = {
     select: {
       id_ct_mesa: true,
       codigo: true,
+      capacidad: true,
+      status: true,
+      estado: true,
     },
   },
 } as const;
@@ -171,8 +175,8 @@ class OrdenService {
         include: INCLUDE_ORDEN_COMPLETA,
       });
 
-      // Notificar vía Sockets
-      socketService.notificarNuevaOrden(nuevaOrden);
+      // Publicar evento vía PubSub (reemplaza socket.io)
+      void pubsub.publish(EVENTO_ORDEN_NUEVA, { ordenNueva: nuevaOrden });
 
       return nuevaOrden;
     });
@@ -201,8 +205,8 @@ class OrdenService {
       include: INCLUDE_ORDEN_COMPLETA,
     });
 
-    // Notificar vía Sockets
-    socketService.notificarCambioEstado(ordenModificada);
+    // Publicar evento vía PubSub (reemplaza socket.io)
+    void pubsub.publish(EVENTO_ORDEN_ACTUALIZADA, { ordenActualizada: ordenModificada });
 
     return ordenModificada;
   }
