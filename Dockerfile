@@ -9,7 +9,7 @@ WORKDIR /usr/src/app
 RUN npm install -g pnpm@9
 
 # 2. Copiar archivos de dependencias (incluyendo el lock de pnpm)
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma/
 
 # 3. Instalar dependencias ignorando scripts de post-install problemáticos
