@@ -1,6 +1,7 @@
 FROM node:lts-alpine
 
-ENV NODE_ENV=production
+# NODE_ENV se define en runtime (después del build) para que pnpm instale
+# también las devDependencies durante la fase de compilación (prisma, tsc, etc.)
 
 WORKDIR /usr/src/app
 
@@ -28,7 +29,10 @@ RUN pnpm run build
 # 7. Elimina devDependencies para que la imagen pese menos
 RUN pnpm prune --production
 
-# 8. Carpetas necesarias en runtime
+# 8. A partir de aquí solo correrá código compilado — marcar entorno como producción
+ENV NODE_ENV=production
+
+# 9. Carpetas necesarias en runtime
 RUN mkdir -p uploads logs
 
 EXPOSE 3000
