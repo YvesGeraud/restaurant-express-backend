@@ -60,10 +60,9 @@ class AuthService {
     }
 
     const tokens = await this.emitirTokens(payload);
-    const permisos = await this.obtenerPermisosPorRolId(encontrado.id_ct_rol);
 
     return {
-      usuario: this.sanitizarUsuario({ ...encontrado, permisos }),
+      usuario: this.sanitizarUsuario(encontrado),
       tokens,
     };
   }
@@ -183,9 +182,7 @@ class AuthService {
       throw new ErrorNoAutenticado('Sesión expirada');
     }
 
-    const permisos = await this.obtenerPermisosPorRolId(usuario.id_ct_rol);
-
-    return this.sanitizarUsuario({ ...usuario, permisos });
+    return this.sanitizarUsuario(usuario);
   }
 
   // ── Expuesto para el middleware de autenticación ──────────────────────────
@@ -195,11 +192,12 @@ class AuthService {
   }
 
   /**
-   * Obtiene la lista de códigos de permisos asociados a un rol directamente de la base de datos.
+   * Obtiene la lista de códigos de permisos activos asociados a un rol directamente de la base de datos.
+   * Solo incluye relaciones con estado = true — las desactivadas se ignoran.
    */
   async obtenerPermisosPorRolId(id_ct_rol: number): Promise<Permiso[]> {
     const relaciones = await prisma.rl_rol_permiso.findMany({
-      where: { id_ct_rol },
+      where: { id_ct_rol, estado: true },
       include: {
         ct_permiso: {
           select: { codigo: true },
@@ -231,9 +229,9 @@ class AuthService {
     return { accessToken, refreshToken };
   }
 
-  /** Elimina la contraseña y devuelve solo los campos seguros para el cliente. */
+  /** Elimina la contraseña y devuelve solo los campos seguros de identidad para el cliente. */
   private sanitizarUsuario(
-    usuario: ct_usuario & { ct_rol: { nombre: string }; permisos?: Permiso[] },
+    usuario: ct_usuario & { ct_rol: { nombre: string } },
   ): UsuarioSanitizado {
     return {
       id_ct_usuario: usuario.id_ct_usuario,
@@ -242,7 +240,6 @@ class AuthService {
       nombre_completo: usuario.nombre_completo,
       id_ct_rol: usuario.id_ct_rol,
       rol: usuario.ct_rol.nombre,
-      permisos: usuario.permisos || [],
     };
   }
 }

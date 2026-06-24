@@ -34,6 +34,10 @@ export interface PayloadJWT {
 /**
  * Datos del usuario después de eliminar campos sensibles como contraseñas.
  * Se usa para devolver la información del usuario logueado al frontend.
+ *
+ * IMPORTANTE: No incluye permisos. La autorización es responsabilidad exclusiva
+ * del backend (middleware `autorizar` + cache de rutas). El frontend solo recibe
+ * identidad — nunca el mapa de capacidades del rol.
  */
 export interface UsuarioSanitizado {
   id_ct_usuario: number;
@@ -42,7 +46,6 @@ export interface UsuarioSanitizado {
   nombre_completo: string;
   id_ct_rol: number;
   rol: string;
-  permisos: Permiso[]; // Lista de habilidades calculadas según el rol
 }
 
 /**

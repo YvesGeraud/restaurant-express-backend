@@ -5,7 +5,7 @@ ENV NODE_ENV=production
 WORKDIR /usr/src/app
 
 # 1. Instalar pnpm globalmente
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 # 2. Copiar archivos de dependencias (incluyendo el lock de pnpm)
 COPY package.json pnpm-lock.yaml ./
@@ -15,7 +15,7 @@ COPY prisma ./prisma/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # 4. Genera el client de Prisma
-RUN npx prisma generate
+RUN pnpm run db:generate
 
 # 5. Copia el resto del código fuente
 COPY src ./src
