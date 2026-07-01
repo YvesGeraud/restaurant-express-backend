@@ -38,6 +38,13 @@ export const entornoSchema = z
     STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET es obligatorio'),
     STRIPE_PUBLISHABLE_KEY: z.string().min(1, 'STRIPE_PUBLISHABLE_KEY es obligatorio'),
 
+    // Email (SMTP) — opcionales con defaults de Mailtrap para desarrollo
+    MAIL_HOST: z.string().default('sandbox.smtp.mailtrap.io'),
+    MAIL_PORT: z.coerce.number().default(2525),
+    MAIL_USER: z.string().default(''),
+    MAIL_PASS: z.string().default(''),
+    MAIL_FROM: z.string().default('Restaurante <noreply@restaurante.com>'),
+
     // Autenticación
     JWT_SECRET: z.string().min(1, 'JWT_SECRET es obligatorio'),
     JWT_EXPIRES_IN: z.string().default('15m'),

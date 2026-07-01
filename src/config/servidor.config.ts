@@ -51,6 +51,14 @@ export const config = {
   bcrypt: {
     rounds: env.BCRYPT_ROUNDS,
   },
+
+  mail: {
+    host: env.MAIL_HOST,
+    port: env.MAIL_PORT,
+    user: env.MAIL_USER,
+    pass: env.MAIL_PASS,
+    from: env.MAIL_FROM,
+  },
 } as const;
 
 export type Config = typeof config;

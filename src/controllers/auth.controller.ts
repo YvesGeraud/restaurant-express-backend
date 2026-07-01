@@ -3,7 +3,12 @@ import authService from '@/services/auth.service';
 import { responder } from '@/utils/respuestas.utils';
 import { ErrorNoAutenticado } from '@/utils/errores.utils';
 import { config } from '@/config/servidor.config';
-import type { LoginDTO } from '@/schemas/auth.schema';
+import type {
+  LoginDTO,
+  CambiarContrasenaDTO,
+  SolicitarRecuperacionDTO,
+  ResetearContrasenaDTO,
+} from '@/schemas/auth.schema';
 
 // ── Opciones base de cookie ───────────────────────────────────────────────────
 
@@ -79,6 +84,39 @@ class AuthController {
   async yo(req: Request, res: Response): Promise<void> {
     const usuario = await authService.obtenerSesionActual(req.usuario!.id_ct_usuario);
     responder.ok(res, { usuario });
+  }
+
+  /**
+   * POST /api/auth/change-password
+   * Permite al usuario autenticado cambiar su contraseña actual.
+   */
+  async cambiarContrasena(req: Request, res: Response): Promise<void> {
+    const { contrasena_actual, contrasena_nueva } = req.body as CambiarContrasenaDTO;
+    await authService.cambiarContrasena(req.usuario!.id_ct_usuario, contrasena_actual, contrasena_nueva);
+
+    res.clearCookie('accessToken', BASE_COOKIE);
+    res.clearCookie('refreshToken', BASE_COOKIE);
+    responder.ok(res, null, 'Contraseña actualizada. Por seguridad, inicia sesión nuevamente.');
+  }
+
+  /**
+   * POST /api/auth/forgot-password
+   * Envía el email de recuperación (siempre responde OK para no revelar si el email existe).
+   */
+  async solicitarRecuperacion(req: Request, res: Response): Promise<void> {
+    const { email } = req.body as SolicitarRecuperacionDTO;
+    await authService.solicitarRecuperacion(email);
+    responder.ok(res, null, 'Si existe una cuenta con ese email, recibirás instrucciones para restablecer tu contraseña.');
+  }
+
+  /**
+   * POST /api/auth/reset-password
+   * Verifica el token de recuperación y actualiza la contraseña.
+   */
+  async resetearContrasena(req: Request, res: Response): Promise<void> {
+    const { token, contrasena_nueva } = req.body as ResetearContrasenaDTO;
+    await authService.resetearContrasena(token, contrasena_nueva);
+    responder.ok(res, null, 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión.');
   }
 
   /**

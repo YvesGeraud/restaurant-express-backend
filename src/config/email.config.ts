@@ -1,22 +1,12 @@
-function opcional(nombre: string, porDefecto: string): string {
-  const valor = process.env[nombre];
-  return valor && valor.trim() !== '' ? valor : porDefecto;
-}
-
-function numero(nombre: string, porDefecto: number): number {
-  const raw = process.env[nombre];
-  if (!raw || raw.trim() === '') return porDefecto;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : porDefecto;
-}
+import { config } from '@/config/servidor.config';
 
 export const mailConfig = {
-  host: opcional('MAIL_HOST', 'sandbox.smtp.mailtrap.io'),
-  port: numero('MAIL_PORT', 2525),
+  host: config.mail.host,
+  port: config.mail.port,
   secure: false,
   auth: {
-    user: opcional('MAIL_USER', 'f808761e42d940'),
-    pass: opcional('MAIL_PASS', 'bb50c8f4e32e26'),
+    user: config.mail.user,
+    pass: config.mail.pass,
   },
-  from: opcional('MAIL_FROM', 'Restaurante <noreply@restaurante.com>'),
+  from: config.mail.from,
 } as const;

@@ -26,6 +26,23 @@ import jwt from 'jsonwebtoken'; // Para generar tokens de prueba válidos
 // Reemplazamos el módulo real de Prisma con un objeto de funciones falsas (vi.fn()).
 // Cada vi.fn() empieza vacío — retorna undefined por defecto.
 // En cada test definimos exactamente qué debe retornar con .mockResolvedValue().
+// Mock del cache de autorización dinámica — en tests no hay BD para cargarlo,
+// así que proveemos el mapeo ruta→permiso directamente para las rutas protegidas.
+vi.mock('@/utils/ruta-permiso.cache', () => ({
+  obtenerPermisoDeRuta: (metodo: string, ruta: string) => {
+    const mapa: Record<string, string> = {
+      'POST:/api/platillos':   'PLATILLOS_CREAR',
+      'PATCH:/api/platillos':  'PLATILLOS_EDITAR',
+      'DELETE:/api/platillos': 'PLATILLOS_BORRAR',
+    };
+    return mapa[`${metodo}:${ruta}`];
+  },
+  cargarCacheRutaPermisos:    () => Promise.resolve(),
+  iniciarRefrescoAutomatico:  () => {},
+  invalidarCacheRutaPermisos: () => Promise.resolve(),
+  obtenerPermisosDeRol: () => undefined,
+}));
+
 vi.mock('@/config/database.config', () => ({
   prisma: {
     ct_platillo: {
@@ -44,6 +61,7 @@ vi.mock('@/config/database.config', () => ({
 
 // Los imports de app y prisma van DESPUÉS del mock.
 // Si estuvieran antes, Prisma se importaría sin el mock aplicado.
+import { TODOS_LOS_PERMISOS } from '../helpers/permisos.fixture';
 import app from '@/setup';
 import { prisma } from '@/config/database.config';
 
@@ -82,33 +100,7 @@ describe('Módulo de Platillos — Rutas de Integración', () => {
     // para validar si el rol del usuario tiene el permiso requerido por la ruta.
     // Aquí simulamos que el rol ADMIN tiene TODOS los permisos del sistema,
     // así los tests de happy-path no fallan por falta de permiso.
-    vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue([
-      { ct_permiso: { codigo: 'USUARIOS_VER' } },
-      { ct_permiso: { codigo: 'USUARIOS_CREAR' } },
-      { ct_permiso: { codigo: 'USUARIOS_EDITAR' } },
-      { ct_permiso: { codigo: 'USUARIOS_BORRAR' } },
-      { ct_permiso: { codigo: 'CLIENTES_VER' } },
-      { ct_permiso: { codigo: 'CLIENTES_CREAR' } },
-      { ct_permiso: { codigo: 'CLIENTES_EDITAR' } },
-      { ct_permiso: { codigo: 'CLIENTES_BORRAR' } },
-      { ct_permiso: { codigo: 'PLATILLOS_VER' } },
-      { ct_permiso: { codigo: 'PLATILLOS_CREAR' } },
-      { ct_permiso: { codigo: 'PLATILLOS_EDITAR' } },
-      { ct_permiso: { codigo: 'PLATILLOS_BORRAR' } },
-      { ct_permiso: { codigo: 'MESAS_VER' } },
-      { ct_permiso: { codigo: 'MESAS_CREAR' } },
-      { ct_permiso: { codigo: 'MESAS_EDITAR' } },
-      { ct_permiso: { codigo: 'MESAS_BORRAR' } },
-      { ct_permiso: { codigo: 'CONFIG_VER' } },
-      { ct_permiso: { codigo: 'CONFIG_EDITAR' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_VER' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_CREAR' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_EDITAR' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_BORRAR' } },
-      { ct_permiso: { codigo: 'ORDENES_CREAR' } },
-      { ct_permiso: { codigo: 'ORDENES_ESTADO' } },
-      { ct_permiso: { codigo: 'ORDENES_CANCELAR' } },
-    ] as any);
+    vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue(TODOS_LOS_PERMISOS as any);
 
     // findFirst en null por defecto → simula que no hay platillo duplicado.
     // El service lo usa en verificarNoExiste() antes de crear.

@@ -192,7 +192,9 @@ app.get(`${base}health`, async (_req, res) => {
       estado: 'error',
       entorno: config.nodeEnv,
       base_datos: 'desconectada',
-      mensaje: error instanceof Error ? error.message : String(error),
+      mensaje: config.esProduccion
+          ? 'Error de conexión a la base de datos'
+          : (error instanceof Error ? error.message : String(error)),
     });
   }
 });
@@ -204,10 +206,25 @@ app.use(`${base}api/auth`, limitarAuth, authRouter);
 // Resto de módulos centralizados en routes/index.ts
 app.use(`${base}api/`, router);
 
+// Rate limiting para GraphQL: 200 peticiones cada 15 min por IP
+// Las subscriptions WebSocket quedan fuera (se autentican en conexión, no en cada mensaje)
+const limitarGraphQL = rateLimit({
+  windowMs: 15 * 60 * 1_000,
+  max: 200,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET', // GET = introspección en dev, no necesita throttle
+  message: {
+    exito: false,
+    mensaje: 'Demasiadas peticiones GraphQL. Intenta de nuevo en 15 minutos.',
+    codigo: 'TOO_MANY_REQUESTS',
+  },
+});
+
 // ── GraphQL ───────────────────────────────────────────────────────────────────
 // La ruta /graphql DEBE registrarse aquí (ANTES del 404 handler).
 // Usamos un handler que delega al servidor Apollo una vez que se inicializa.
-app.use(`${base}graphql`, async (req: Request, res: Response, next: NextFunction) => {
+app.use(`${base}graphql`, limitarGraphQL, async (req: Request, res: Response, next: NextFunction) => {
   if (!apolloServer) {
     // Apollo aun no ha inicializado (no debería ocurrir en producción)
     res.status(503).json({ error: 'GraphQL server not ready' });

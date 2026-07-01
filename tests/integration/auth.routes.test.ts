@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 
 /**
  * vi.mock es HOISTED por vitest al tope del archivo (antes de los imports).
@@ -9,20 +10,57 @@ import request from 'supertest';
 vi.mock('@/config/database.config', () => ({
   prisma: {
     ct_usuario: {
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
     },
     dt_refresh_token: {
       create: vi.fn().mockResolvedValue({ id_dt_refresh_token: 1 }),
-      findUnique: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn(),
       update: vi.fn().mockResolvedValue({}),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
+    dt_token_recuperacion: {
+      create: vi.fn().mockResolvedValue({ id_dt_token_recuperacion: 1 }),
+      findUnique: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    rl_rol_permiso: {
+      findMany: vi.fn(),
+    },
+    $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
     $queryRaw: vi.fn().mockResolvedValue([{ db_health_check: 1 }]),
   },
 }));
 
+vi.mock('@/services/email.service', () => ({
+  default: {
+    enviarNotificacionCambioPassword: vi.fn().mockResolvedValue(undefined),
+    enviarLinkRecuperarPassword: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import app from '@/setup';
+import { prisma } from '@/config/database.config';
+import emailService from '@/services/email.service';
+
+const SECRET = process.env['JWT_SECRET']!;
+const getAuthCookie = (id = 1, rol = 'ADMIN', permisos: string[] = []) => {
+  const token = jwt.sign({ id_ct_usuario: id, usuario: 'admin', rol, permisos }, SECRET, {
+    expiresIn: '15m',
+  });
+  return `accessToken=${token}`;
+};
+
+// Resetear mocks antes de cada test para evitar que Once-mocks sin consumir se filtren
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(prisma.ct_usuario.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.dt_refresh_token.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.dt_token_recuperacion.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue([]);
+});
 
 // ── Health check ───────────────────────────────────────────────────────────────
 
@@ -196,6 +234,130 @@ describe('Rutas protegidas — sin cookie de sesión', () => {
   it('POST /api/auth/logout → 401 (requiere accessToken cookie)', async () => {
     const res = await request(app).post('/api/auth/logout');
     expect(res.status).toBe(401);
+  });
+});
+
+// ── POST /api/auth/change-password ────────────────────────────────────────────
+
+describe('POST /api/auth/change-password', () => {
+  it('401 sin cookie de sesión', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .send({ contrasena_actual: 'Actual123!', contrasena_nueva: 'Nueva1234!', confirmar_contrasena: 'Nueva1234!' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 VALIDATION_ERROR si confirmar_contrasena no coincide', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Cookie', getAuthCookie())
+      .send({ contrasena_actual: 'Actual123!', contrasena_nueva: 'NuevaA123!', confirmar_contrasena: 'NuevaB123!' });
+    expect(res.status).toBe(400);
+    expect(res.body.codigo).toBe('VALIDATION_ERROR');
+  });
+
+  it('200 si las contraseñas son válidas y el usuario existe', async () => {
+    const bcrypt = await import('bcrypt');
+    const hash = await bcrypt.hash('Actual123!', 4);
+
+    vi.mocked(prisma.ct_usuario.findUnique).mockResolvedValueOnce({
+      id_ct_usuario: 1,
+      usuario: 'admin',
+      contrasena: hash,
+      email: 'admin@test.com',
+      estado: true,
+    } as any);
+    vi.mocked(prisma.ct_usuario.update).mockResolvedValueOnce({} as any);
+    vi.mocked(prisma.dt_refresh_token.updateMany).mockResolvedValueOnce({ count: 0 } as any);
+
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Cookie', getAuthCookie())
+      .send({ contrasena_actual: 'Actual123!', contrasena_nueva: 'Nueva1234!', confirmar_contrasena: 'Nueva1234!' });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(emailService.enviarNotificacionCambioPassword)).toHaveBeenCalledWith('admin@test.com', 'admin');
+  });
+});
+
+// ── POST /api/auth/forgot-password ────────────────────────────────────────────
+
+describe('POST /api/auth/forgot-password', () => {
+  it('400 VALIDATION_ERROR si el email no es válido', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'no-es-un-email' });
+    expect(res.status).toBe(400);
+    expect(res.body.codigo).toBe('VALIDATION_ERROR');
+  });
+
+  it('200 aunque el email no exista (no revela si hay cuenta)', async () => {
+    vi.mocked(prisma.ct_usuario.findUnique).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'noexiste@test.com' });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(emailService.enviarLinkRecuperarPassword)).not.toHaveBeenCalled();
+  });
+
+  it('200 y envía email si el usuario existe y está activo', async () => {
+    vi.mocked(prisma.ct_usuario.findUnique).mockResolvedValueOnce({
+      id_ct_usuario: 1,
+      email: 'activo@test.com',
+      estado: true,
+    } as any);
+    vi.mocked(prisma.dt_token_recuperacion.deleteMany).mockResolvedValueOnce({ count: 0 } as any);
+    vi.mocked(prisma.dt_token_recuperacion.create).mockResolvedValueOnce({} as any);
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'activo@test.com' });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(emailService.enviarLinkRecuperarPassword)).toHaveBeenCalledWith(
+      'activo@test.com',
+      expect.any(String),
+    );
+  });
+});
+
+// ── POST /api/auth/reset-password ─────────────────────────────────────────────
+
+describe('POST /api/auth/reset-password', () => {
+  it('400 VALIDATION_ERROR si falta el token', async () => {
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ contrasena_nueva: 'Nueva1234!', confirmar_contrasena: 'Nueva1234!' });
+    expect(res.status).toBe(400);
+    expect(res.body.codigo).toBe('VALIDATION_ERROR');
+  });
+
+  it('400 si el token no existe en BD', async () => {
+    vi.mocked(prisma.dt_token_recuperacion.findUnique).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: 'token-invalido', contrasena_nueva: 'Nueva1234!', confirmar_contrasena: 'Nueva1234!' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('200 si el token es válido y las contraseñas coinciden', async () => {
+    vi.mocked(prisma.dt_token_recuperacion.findUnique).mockResolvedValueOnce({
+      id_dt_token_recuperacion: 1,
+      id_ct_usuario: 1,
+      usado: false,
+      expira_en: new Date(Date.now() + 60 * 60 * 1_000),
+    } as any);
+    vi.mocked(prisma.$transaction).mockResolvedValueOnce([{}, {}, { count: 1 }] as any);
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: 'token-valido-hex', contrasena_nueva: 'Nueva1234!', confirmar_contrasena: 'Nueva1234!' });
+
+    expect(res.status).toBe(200);
   });
 });
 

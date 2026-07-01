@@ -21,3 +21,8 @@ process.env['DB_PORT'] = '3306';
 process.env['DBNAMES'] = 'test_restaurante';
 process.env['DB_USER'] = 'test';
 process.env['DB_PASSWORD'] = 'test';
+
+// Stripe — valores ficticios, Stripe se mockea en cada test que lo necesita
+process.env['STRIPE_SECRET_KEY'] = 'sk_test_fake_key_for_tests';
+process.env['STRIPE_WEBHOOK_SECRET'] = 'whsec_fake_webhook_secret_for_tests';
+process.env['STRIPE_PUBLISHABLE_KEY'] = 'pk_test_fake_publishable_key_for_tests';

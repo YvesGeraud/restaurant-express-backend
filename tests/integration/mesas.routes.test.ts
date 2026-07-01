@@ -3,6 +3,21 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
 // Mock de Prisma
+vi.mock('@/utils/ruta-permiso.cache', () => ({
+  obtenerPermisoDeRuta: (metodo: string, ruta: string) => {
+    const mapa: Record<string, string> = {
+      'POST:/api/mesas':   'CONFIG_VER',
+      'PATCH:/api/mesas':  'CONFIG_VER',
+      'DELETE:/api/mesas': 'CONFIG_VER',
+    };
+    return mapa[`${metodo}:${ruta}`];
+  },
+  cargarCacheRutaPermisos:    () => Promise.resolve(),
+  iniciarRefrescoAutomatico:  () => {},
+  invalidarCacheRutaPermisos: () => Promise.resolve(),
+  obtenerPermisosDeRol: () => undefined,
+}));
+
 vi.mock('@/config/database.config', () => ({
   prisma: {
     ct_mesa: {
@@ -22,6 +37,7 @@ vi.mock('@/config/database.config', () => ({
   },
 }));
 
+import { TODOS_LOS_PERMISOS } from '../helpers/permisos.fixture';
 import app from '@/setup';
 import { prisma } from '@/config/database.config';
 
@@ -40,9 +56,7 @@ describe('Módulo de Mesas — Rutas de Integración', () => {
     vi.clearAllMocks();
 
     // Mock por defecto para permisos (Admin con CONFIG_VER)
-    vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue([
-      { ct_permiso: { codigo: 'CONFIG_VER' } },
-    ] as any);
+    vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue(TODOS_LOS_PERMISOS as any);
   });
 
   describe('GET /api/mesas', () => {

@@ -237,6 +237,7 @@ model ct_usuario {
   dt_documento_modificados        dt_documento[]        @relation("dt_documento_id_ct_usuario_modToct_usuario")
   dt_documento_registrados        dt_documento[]        @relation("dt_documento_id_ct_usuario_regToct_usuario")
   dt_refresh_token                dt_refresh_token[]
+  dt_token_recuperacion           dt_token_recuperacion[]
   rl_orden_modificados            rl_orden[]            @relation("rl_orden_id_ct_usuario_modToct_usuario")
   rl_orden_registrados            rl_orden[]            @relation("rl_orden_id_ct_usuario_regToct_usuario")
   ordenes                         rl_orden[]            @relation("rl_orden_id_ct_usuarioToct_usuario")
@@ -351,6 +352,19 @@ model dt_refresh_token {
   @@index([expira_en])
   @@index([id_ct_usuario])
   @@index([revocado, expira_en])
+}
+
+model dt_token_recuperacion {
+  id_dt_token_recuperacion Int        @id @default(autoincrement())
+  token_hash               String     @unique @db.VarChar(64)
+  id_ct_usuario            Int
+  expira_en                DateTime   @db.DateTime(6)
+  usado                    Boolean    @default(false)
+  creado_en                DateTime   @default(now()) @db.DateTime(6)
+  ct_usuario               ct_usuario @relation(fields: [id_ct_usuario], references: [id_ct_usuario], onDelete: Cascade)
+
+  @@index([id_ct_usuario])
+  @@index([expira_en])
 }
 
 model rl_orden {

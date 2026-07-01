@@ -9,6 +9,21 @@ type Mesa {
   estado:       Boolean!
 }
 
+# ── Inputs ────────────────────────────────────────────────────────────────────
+
+input CrearMesaInput {
+  codigo:    String!
+  capacidad: Int!
+  status:    String
+}
+
+input ActualizarMesaInput {
+  codigo:    String
+  capacidad: Int
+  status:    String
+  estado:    Boolean
+}
+
 # ── Queries ───────────────────────────────────────────────────────────────────
 
 extend type Query {
@@ -17,4 +32,17 @@ extend type Query {
 
   """ Mesa por ID """
   mesa(id: Int!): Mesa
+}
+
+# ── Mutations ─────────────────────────────────────────────────────────────────
+
+extend type Mutation {
+  """ Crear una nueva mesa (requiere autenticación) """
+  crearMesa(input: CrearMesaInput!): Mesa!
+
+  """ Actualizar campos de una mesa (requiere autenticación) """
+  actualizarMesa(id: Int!, input: ActualizarMesaInput!): Mesa!
+
+  """ Desactivar una mesa — soft delete (requiere autenticación) """
+  eliminarMesa(id: Int!): Boolean!
 }

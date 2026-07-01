@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { prisma } from '@/config/database.config';
-import { ErrorNoAutenticado } from '@/utils/errores.utils';
+import { ErrorNoAutenticado, ErrorValidacion } from '@/utils/errores.utils';
 import {
   generarAccessToken,
   generarRefreshToken,
@@ -8,6 +9,9 @@ import {
   verificarAccessToken,
   hashToken,
 } from '@/utils/jwt.utils';
+import { obtenerPermisosDeRol } from '@/utils/ruta-permiso.cache';
+import emailService from '@/services/email.service';
+import { config } from '@/config/servidor.config';
 import type { PayloadJWT, AuthTokens, UsuarioSanitizado, Permiso } from '@/types';
 import type { ct_usuario } from '@prisma/client';
 import { getAuditContext } from '@/utils/auth.utils';
@@ -192,20 +196,113 @@ class AuthService {
   }
 
   /**
-   * Obtiene la lista de códigos de permisos activos asociados a un rol directamente de la base de datos.
-   * Solo incluye relaciones con estado = true — las desactivadas se ignoran.
+   * Obtiene la lista de códigos de permisos activos para un rol.
+   * Consulta el cache en memoria primero (O(1)); solo va a BD en first-miss.
    */
   async obtenerPermisosPorRolId(id_ct_rol: number): Promise<Permiso[]> {
+    const cached = obtenerPermisosDeRol(id_ct_rol);
+    if (cached !== undefined) return cached;
+
     const relaciones = await prisma.rl_rol_permiso.findMany({
       where: { id_ct_rol, estado: true },
-      include: {
-        ct_permiso: {
-          select: { codigo: true },
-        },
-      },
+      include: { ct_permiso: { select: { codigo: true } } },
     });
 
     return relaciones.map((r) => r.ct_permiso.codigo as Permiso);
+  }
+
+  // ── Cambio de contraseña (usuario autenticado) ───────────────────────────
+
+  /**
+   * Permite a un usuario autenticado cambiar su contraseña actual.
+   * Verifica la contraseña actual antes de actualizar.
+   */
+  async cambiarContrasena(
+    id_ct_usuario: number,
+    contrasena_actual: string,
+    contrasena_nueva: string,
+  ): Promise<void> {
+    const usuario = await prisma.ct_usuario.findUnique({ where: { id_ct_usuario } });
+    if (!usuario) throw new ErrorNoAutenticado('Sesión inválida');
+
+    const valida = await bcrypt.compare(contrasena_actual, usuario.contrasena);
+    if (!valida) throw new ErrorValidacion('La contraseña actual es incorrecta');
+
+    const hash = await bcrypt.hash(contrasena_nueva, config.bcrypt.rounds);
+    await prisma.ct_usuario.update({
+      where: { id_ct_usuario },
+      data: { contrasena: hash, fecha_mod: new Date(), id_ct_usuario_mod: id_ct_usuario },
+    });
+
+    // Revocar todas las sesiones activas — fuerza nuevo login con nueva contraseña
+    await prisma.dt_refresh_token.updateMany({
+      where: { id_ct_usuario, revocado: false },
+      data: { revocado: true, revocado_en: new Date() },
+    });
+
+    if (usuario.email) {
+      void emailService.enviarNotificacionCambioPassword(usuario.email, usuario.usuario);
+    }
+  }
+
+  // ── Recuperación de contraseña ────────────────────────────────────────────
+
+  /**
+   * Genera un token de recuperación de un solo uso (TTL: 1 hora) y envía el
+   * link al email del usuario. Responde igual si el email no existe — no revela
+   * si hay cuenta registrada con esa dirección (protección de enumeración).
+   */
+  async solicitarRecuperacion(email: string): Promise<void> {
+    const usuario = await prisma.ct_usuario.findUnique({ where: { email } });
+
+    // Siempre responder OK aunque el email no exista → no revela si hay cuenta
+    if (!usuario || !usuario.estado) return;
+
+    // Limpiar tokens previos no usados del mismo usuario
+    await prisma.dt_token_recuperacion.deleteMany({
+      where: { id_ct_usuario: usuario.id_ct_usuario, usado: false },
+    });
+
+    const tokenPlano = crypto.randomBytes(32).toString('hex');
+    const tokenHash  = hashToken(tokenPlano);
+    const expiraEn   = new Date(Date.now() + 60 * 60 * 1_000); // 1 hora
+
+    await prisma.dt_token_recuperacion.create({
+      data: { token_hash: tokenHash, id_ct_usuario: usuario.id_ct_usuario, expira_en: expiraEn },
+    });
+
+    void emailService.enviarLinkRecuperarPassword(email, tokenPlano);
+  }
+
+  /**
+   * Valida el token de recuperación y actualiza la contraseña del usuario.
+   * El token se marca como usado y no puede reutilizarse.
+   */
+  async resetearContrasena(tokenPlano: string, contrasena_nueva: string): Promise<void> {
+    const tokenHash = hashToken(tokenPlano);
+    const registro  = await prisma.dt_token_recuperacion.findUnique({ where: { token_hash: tokenHash } });
+
+    if (!registro || registro.usado || registro.expira_en < new Date()) {
+      throw new ErrorValidacion('El enlace de recuperación es inválido o ha expirado');
+    }
+
+    const hash = await bcrypt.hash(contrasena_nueva, config.bcrypt.rounds);
+
+    await prisma.$transaction([
+      prisma.ct_usuario.update({
+        where: { id_ct_usuario: registro.id_ct_usuario },
+        data: { contrasena: hash, fecha_mod: new Date() },
+      }),
+      prisma.dt_token_recuperacion.update({
+        where: { id_dt_token_recuperacion: registro.id_dt_token_recuperacion },
+        data: { usado: true },
+      }),
+      // Revocar todas las sesiones activas — fuerza nuevo login
+      prisma.dt_refresh_token.updateMany({
+        where: { id_ct_usuario: registro.id_ct_usuario, revocado: false },
+        data: { revocado: true, revocado_en: new Date() },
+      }),
+    ]);
   }
 
   // ── Privados ──────────────────────────────────────────────────────────────

@@ -3,6 +3,22 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
 // Mock de Prisma
+vi.mock('@/utils/ruta-permiso.cache', () => ({
+  obtenerPermisoDeRuta: (metodo: string, ruta: string) => {
+    const mapa: Record<string, string> = {
+      'GET:/api/clientes':    'CLIENTES_VER',
+      'POST:/api/clientes':   'CLIENTES_CREAR',
+      'PATCH:/api/clientes':  'CLIENTES_EDITAR',
+      'DELETE:/api/clientes': 'CLIENTES_BORRAR',
+    };
+    return mapa[`${metodo}:${ruta}`];
+  },
+  cargarCacheRutaPermisos:    () => Promise.resolve(),
+  iniciarRefrescoAutomatico:  () => {},
+  invalidarCacheRutaPermisos: () => Promise.resolve(),
+  obtenerPermisosDeRol: () => undefined,
+}));
+
 vi.mock('@/config/database.config', () => ({
   prisma: {
     ct_cliente: {
@@ -19,6 +35,7 @@ vi.mock('@/config/database.config', () => ({
   },
 }));
 
+import { TODOS_LOS_PERMISOS } from '../helpers/permisos.fixture';
 import app from '@/setup';
 import { prisma } from '@/config/database.config';
 
@@ -40,33 +57,7 @@ describe('Módulo de Clientes — Rutas de Integración', () => {
     vi.clearAllMocks();
 
     // Mock por defecto para permisos
-    vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue([
-      { ct_permiso: { codigo: 'USUARIOS_VER' } },
-      { ct_permiso: { codigo: 'USUARIOS_CREAR' } },
-      { ct_permiso: { codigo: 'USUARIOS_EDITAR' } },
-      { ct_permiso: { codigo: 'USUARIOS_BORRAR' } },
-      { ct_permiso: { codigo: 'CLIENTES_VER' } },
-      { ct_permiso: { codigo: 'CLIENTES_CREAR' } },
-      { ct_permiso: { codigo: 'CLIENTES_EDITAR' } },
-      { ct_permiso: { codigo: 'CLIENTES_BORRAR' } },
-      { ct_permiso: { codigo: 'PLATILLOS_VER' } },
-      { ct_permiso: { codigo: 'PLATILLOS_CREAR' } },
-      { ct_permiso: { codigo: 'PLATILLOS_EDITAR' } },
-      { ct_permiso: { codigo: 'PLATILLOS_BORRAR' } },
-      { ct_permiso: { codigo: 'MESAS_VER' } },
-      { ct_permiso: { codigo: 'MESAS_CREAR' } },
-      { ct_permiso: { codigo: 'MESAS_EDITAR' } },
-      { ct_permiso: { codigo: 'MESAS_BORRAR' } },
-      { ct_permiso: { codigo: 'CONFIG_VER' } },
-      { ct_permiso: { codigo: 'CONFIG_EDITAR' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_VER' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_CREAR' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_EDITAR' } },
-      { ct_permiso: { codigo: 'RESERVACIONES_BORRAR' } },
-      { ct_permiso: { codigo: 'ORDENES_CREAR' } },
-      { ct_permiso: { codigo: 'ORDENES_ESTADO' } },
-      { ct_permiso: { codigo: 'ORDENES_CANCELAR' } },
-    ] as any);
+    vi.mocked(prisma.rl_rol_permiso.findMany).mockResolvedValue(TODOS_LOS_PERMISOS as any);
 
     // Mock findFirst como null por defecto
     vi.mocked(prisma.ct_cliente.findFirst).mockResolvedValue(null);
